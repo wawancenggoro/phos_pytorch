@@ -220,13 +220,13 @@ print('train Y shape: ', train_Y.shape)
 print('valid X shape: ', valid_X.shape)
 print('valid Y shape: ', valid_Y.shape)
 
-def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+def gaussian(size, mu, logsig):
+    return torch.exp(-torch.pow(torch.linspace(0,size-1,size) - mu, 2.) / (2 * torch.pow(torch.exp(logsig), 2.)))
 
-seq_pos = np.linspace(0,8,9)
-mu = 4
-sig = 4
-gaussian(seq_pos, mu, sig)
+size = 9
+mu = 4.
+# logsig = torch.FloatTensor([4])[0]
+# gaussian(size, mu, logsig)
 
 class Net(torch.nn.Module):
   def __init__(self, droprate):
@@ -234,6 +234,7 @@ class Net(torch.nn.Module):
     self.embed = torch.nn.Embedding(20, 16)
 
     self.att_fc = torch.nn.Linear(9*16, 9)
+    self.logsig_fc = torch.nn.Linear(9*16, 1)
     self.softmax = torch.nn.functional.softmax
 
     self.fc1 = torch.nn.Linear(9*16, 128)
@@ -253,10 +254,11 @@ class Net(torch.nn.Module):
     out = emb.view((x.shape[0], -1))
     # att = self.softmax(self.att_fc(out), dim=1)
 
-    # # Gaussian hard code
-    # att = att = torch.FloatTensor(gaussian(seq_pos, mu, sig)).unsqueeze(0).repeat(x.shape[0],1)
+    # Gaussian
+    logsig = self.logsig_fc(out)
+    att = torch.exp(-torch.pow(torch.linspace(0,size-1,size).cuda() - mu, 2.) / (2 * torch.pow(torch.exp(logsig), 2.)))
     
-    # out = torch.mul(emb, att.unsqueeze(2)).view((x.shape[0], -1))
+    out = torch.mul(emb, att.unsqueeze(2)).view((x.shape[0], -1))
     out = self.relu(self.fc1(out))
     if self.droprate>0:
         out = self.dropout(out)
